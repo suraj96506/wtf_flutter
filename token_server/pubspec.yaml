@@ -1,0 +1,17 @@
+name: token_server
+description: A simple token server for 100ms integration.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.10.4 <4.0.0'
+
+dependencies:
+  firebase_core: ^4.3.0
+  hmssdk_flutter: ^1.11.0
+  http: ^1.6.0
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+
+dev_dependencies:
+  lints: ^3.0.0

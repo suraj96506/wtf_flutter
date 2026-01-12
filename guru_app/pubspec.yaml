@@ -11,8 +11,14 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  flutter_riverpod: ^2.5.1
-  hmssdk_flutter: ^0.5.0 # 100ms SDK
+  flutter_riverpod: ^2.6.1
+  hmssdk_flutter: ^1.11.0 # 100ms SDK
+  hive_flutter: ^1.1.0
+  shared:
+    path: ../shared
+  http: ^1.6.0
+  firebase_core: ^3.15.2
+  cloud_firestore: ^5.4.4
 
 dev_dependencies:
   flutter_test:

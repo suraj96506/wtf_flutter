@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "876178419860",
+    "project_id": "wtf-gym-80f24",
+    "storage_bucket": "wtf-gym-80f24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:876178419860:android:6be55cbda5b50fd0358481",
+        "android_client_info": {
+          "package_name": "com.example.wtf_flutter_test"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSqM4PNTBgOYVYQA3lr8GyT5bzKVuNvAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
