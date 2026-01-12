@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:guru_app/firebase_options.dart';
 import 'package:guru_app/screens/login_screen.dart';
 import 'package:shared/services/service_providers.dart';
 
 import 'package:hive_flutter/hive_flutter.dart'; // Import Hive
 import 'package:guru_app/screens/onboarding_screen.dart'; // Import OnboardingScreen
 import 'package:guru_app/screens/guru_home_screen.dart'; // Import GuruHomeScreen
+import 'package:firebase_core/firebase_core.dart';
 
 Future<void> main() async { // Changed main to Future<void> async
   WidgetsFlutterBinding.ensureInitialized(); // Required for async main
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } else {
+    Firebase.app();
+  }
   await Hive.initFlutter(); // Initialize Hive
   runApp(
     const ProviderScope( // Wrap with ProviderScope

@@ -5,6 +5,7 @@ import 'package:shared/models/user.dart';
 import 'package:shared/services/service_providers.dart';
 import 'package:shared/services/chat_service.dart';
 import 'package:shared/services/http_chat_service.dart';
+import 'package:shared/services/call_service.dart';
 
 class ConversationScreen extends ConsumerStatefulWidget {
   final User otherUser;
@@ -22,7 +23,6 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO: Mark messages as read when screen is open
   }
 
   @override
@@ -35,6 +35,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   Widget build(BuildContext context) {
     final chatService = ref.watch(chatServiceProvider);
+    final callService = ref.watch(callServiceProvider);
     final currentUser = ref.watch(currentUserStreamProvider).value;
 
     if (currentUser == null) {
@@ -48,6 +49,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.otherUser.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.videocam_outlined),
+            onPressed: () {
+              _sendVideoInvite(chatService, currentUser, widget.otherUser);
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -84,6 +93,15 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final isMe = message.senderId == currentUser.id;
+                    if (_isVideoInvite(message.text)) {
+                      return _buildVideoInviteCard(
+                        context,
+                        message,
+                        isMe,
+                        callService,
+                        currentUser,
+                      );
+                    }
                     return _buildMessageBubble(context, message, isMe);
                   },
                 );
@@ -149,6 +167,77 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 ],
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoInviteCard(
+    BuildContext context,
+    Message message,
+    bool isMe,
+    CallService callService,
+    User currentUser,
+  ) {
+    final parts = message.text.split('|');
+    final roomId = parts.length > 1 ? parts[1] : 'room';
+    final status = parts.length > 2 ? parts[2] : 'pending';
+    final isPending = status == 'pending';
+    final isRejected = status == 'rejected';
+    final isAccepted = status == 'accepted';
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: const Color(0xFF1769E0).withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.videocam, color: const Color(0xFF1769E0)),
+                const SizedBox(width: 8),
+                Text(
+                  'Video call ${isRejected ? "rejected" : isAccepted ? "accepted" : "invite"}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (isPending)
+              Row(
+                children: [
+                  if (!isMe)
+                    ElevatedButton(
+                      onPressed: () {
+                        _sendVideoResponse('accepted', roomId, callService, currentUser, message);
+                        _joinRoom(callService, roomId, currentUser);
+                      },
+                      child: const Text('Accept'),
+                    ),
+                  const SizedBox(width: 8),
+                  if (!isMe)
+                    OutlinedButton(
+                      onPressed: () {
+                        _sendVideoResponse('rejected', roomId, callService, currentUser, message);
+                      },
+                      child: const Text('Reject'),
+                    ),
+                  if (isMe)
+                    const Text('Waiting for response', style: TextStyle(color: Colors.black54)),
+                ],
+              )
+            else if (isAccepted)
+              ElevatedButton.icon(
+                onPressed: () {
+                  _joinRoom(callService, roomId, currentUser);
+                },
+                icon: const Icon(Icons.video_call),
+                label: const Text('Join call'),
+              )
+            else if (isRejected)
+              const Text('Call rejected', style: TextStyle(color: Colors.red)),
           ],
         ),
       ),
@@ -249,6 +338,47 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     return (user1Id.compareTo(user2Id) < 0)
         ? '${user1Id}_$user2Id'
         : '${user2Id}_$user1Id';
+  }
+
+  bool _isVideoInvite(String text) => text.startsWith('VIDEO_INVITE|') || text.startsWith('VIDEO_RESPONSE|');
+
+  void _sendVideoInvite(ChatService chatService, User currentUser, User other) {
+    final roomId = 'room_${DateTime.now().millisecondsSinceEpoch}';
+    final msg = Message(
+      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      chatId: _getChatId(currentUser.id, other.id),
+      senderId: currentUser.id,
+      receiverId: other.id,
+      text: 'VIDEO_INVITE|$roomId|pending',
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+    );
+    chatService.sendMessage(msg);
+  }
+
+  void _sendVideoResponse(
+    String status,
+    String roomId,
+    CallService callService,
+    User currentUser,
+    Message invite,
+  ) {
+    final chatId = invite.chatId;
+    final msg = Message(
+      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      chatId: chatId,
+      senderId: currentUser.id,
+      receiverId: invite.senderId,
+      text: 'VIDEO_INVITE|$roomId|$status',
+      createdAt: DateTime.now(),
+      status: MessageStatus.sending,
+    );
+    ref.read(chatServiceProvider).sendMessage(msg);
+  }
+
+  void _joinRoom(CallService callService, String roomId, User currentUser) {
+    final role = currentUser.role == 'trainer' ? 'trainer' : 'member';
+    callService.joinRoom(roomId, currentUser.id, role);
   }
 }
 

@@ -1,12 +1,21 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared/services/service_providers.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // Import Hive
+import 'package:trainer_app/firebase_options.dart';
 import 'package:trainer_app/screens/trainer_home_screen.dart'; // Import TrainerHomeScreen
 import 'package:trainer_app/screens/login_screen.dart'; // Import LoginScreen
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+ WidgetsFlutterBinding.ensureInitialized(); // Required for async main
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } else {
+    Firebase.app();
+  }
   await Hive.initFlutter();
   runApp(
     const ProviderScope(

@@ -50,7 +50,8 @@ class HMSCallService implements CallService {
       requestedAt: existing.requestedAt,
       scheduledFor: existing.scheduledFor,
       note: existing.note,
-      status: status,
+      status: status, 
+      memberName:"DK", trainerName: 'Aarav', 
     );
     _requestsController.add(List.unmodifiable(_requests));
   }

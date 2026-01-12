@@ -165,6 +165,8 @@ class _ScheduleCallScreenState extends ConsumerState<ScheduleCallScreen> {
       id: 'req_${DateTime.now().millisecondsSinceEpoch}',
       memberId: currentUser.id,
       trainerId: trainer.id,
+      trainerName: trainer.name,
+      memberName: currentUser.name,
       requestedAt: DateTime.now(),
       scheduledFor: scheduledFor,
       note: _noteController.text,

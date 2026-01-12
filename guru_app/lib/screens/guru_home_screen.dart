@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:guru_app/screens/schedule_call_screen.dart';
 import 'package:shared/services/service_providers.dart';
 import 'package:guru_app/screens/chat_list_screen.dart';
+import 'package:guru_app/screens/my_sessions_screen.dart';
 
 class GuruHomeScreen extends ConsumerWidget {
   const GuruHomeScreen({super.key});
@@ -134,6 +135,10 @@ class GuruHomeScreen extends ConsumerWidget {
           } else if (title == 'Schedule Call') {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ScheduleCallScreen()),
+            );
+          } else if (title == 'My Sessions') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MySessionsScreen()),
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(

@@ -51,6 +51,7 @@ class MockCallService implements CallService {
       scheduledFor: existing.scheduledFor,
       note: existing.note,
       status: status,
+      memberName:"DK", trainerName: 'Aarav', 
     );
     _requestsController.add(List.unmodifiable(_requests));
   }

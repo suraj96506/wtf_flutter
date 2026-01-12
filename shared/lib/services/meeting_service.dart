@@ -19,8 +19,17 @@ abstract class MeetingService {
   /// Get all scheduled meetings for a member
   Stream<List<ScheduledMeeting>> getMemberMeetings(String memberId);
 
+  /// Pending requests for trainers
+  Stream<List<ScheduledMeeting>> getTrainerMeetingRequests(String trainerId);
+
+  /// Approve a pending request
+  Future<void> approveMeetingRequest(String meetingId);
+
+  /// Decline a pending request with optional reason
+  Future<void> declineMeetingRequest(String meetingId, {String? reason});
+
   /// Update meeting status
-  Future<void> updateMeetingStatus(String meetingId, MeetingStatus status);
+  Future<void> updateMeetingStatus(String meetingId, MeetingStatus status, {String? declineReason});
 
   /// Cancel a meeting
   Future<void> cancelMeeting(String meetingId);

@@ -1,8 +1,9 @@
-import 'package:trainer_app/screens/trainer_requests_screen.dart'; // Add this import
+import 'package:trainer_app/screens/trainer_requests_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared/services/service_providers.dart';
 import 'package:trainer_app/screens/chat_list_screen.dart';
+import 'package:trainer_app/screens/trainer_sessions_screen.dart';
 
 class TrainerHomeScreen extends ConsumerWidget {
   const TrainerHomeScreen({super.key});
@@ -135,6 +136,10 @@ class TrainerHomeScreen extends ConsumerWidget {
           } else if (title == 'Requests') { // New condition for Requests
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const TrainerRequestsScreen()),
+            );
+          } else if (title == 'Sessions') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TrainerSessionsScreen()),
             );
           } else {
             // TODO: Implement navigation to other features

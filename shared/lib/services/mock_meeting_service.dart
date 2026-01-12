@@ -1,16 +1,19 @@
 import 'dart:async';
+
 import 'package:shared/models/scheduled_meeting.dart';
 import 'package:shared/services/meeting_service.dart';
 
 class MockMeetingService implements MeetingService {
   final List<ScheduledMeeting> _meetings = [];
-  final List<ScheduledMeeting> _meetingRequests = []; // Store unconfirmed requests
+  final List<ScheduledMeeting> _meetingRequests = []; // pending requests
   late StreamController<List<ScheduledMeeting>> _trainerMeetingsController;
   late StreamController<List<ScheduledMeeting>> _memberMeetingsController;
+  late StreamController<List<ScheduledMeeting>> _trainerRequestsController;
 
   MockMeetingService() {
     _trainerMeetingsController = StreamController<List<ScheduledMeeting>>.broadcast();
     _memberMeetingsController = StreamController<List<ScheduledMeeting>>.broadcast();
+    _trainerRequestsController = StreamController<List<ScheduledMeeting>>.broadcast();
   }
 
   @override
@@ -35,7 +38,7 @@ class MockMeetingService implements MeetingService {
       topic: topic,
       description: description,
       durationMinutes: durationMinutes,
-      status: MeetingStatus.scheduled, // Request pending trainer approval
+      status: MeetingStatus.pending, // Request pending trainer approval
     );
 
     _meetingRequests.add(meeting);
@@ -46,7 +49,6 @@ class MockMeetingService implements MeetingService {
 
   @override
   Stream<List<ScheduledMeeting>> getTrainerMeetings(String trainerId) {
-    // Return only confirmed meetings for trainers
     final trainerMeetings = _meetings.where((m) => m.trainerId == trainerId).toList();
     _trainerMeetingsController.add(trainerMeetings);
     return _trainerMeetingsController.stream;
@@ -60,13 +62,19 @@ class MockMeetingService implements MeetingService {
   }
 
   /// Get pending meeting requests for a trainer
+  @override
   Stream<List<ScheduledMeeting>> getTrainerMeetingRequests(String trainerId) {
     final requests = _meetingRequests.where((m) => m.trainerId == trainerId).toList();
-    return Stream.value(requests);
+    _trainerRequestsController.add(requests);
+    return _trainerRequestsController.stream;
   }
 
   @override
-  Future<void> updateMeetingStatus(String meetingId, MeetingStatus status) async {
+  Future<void> updateMeetingStatus(
+    String meetingId,
+    MeetingStatus status, {
+    String? declineReason,
+  }) async {
     // Find and update the meeting
     final meetingIndex = _meetings.indexWhere((m) => m.id == meetingId);
     if (meetingIndex != -1) {
@@ -83,41 +91,48 @@ class MockMeetingService implements MeetingService {
         description: oldMeeting.description,
         durationMinutes: oldMeeting.durationMinutes,
         status: status,
+        declineReason: declineReason ?? oldMeeting.declineReason,
       );
       _notifyListeners();
     }
   }
 
   /// Approve a meeting request (trainer action)
+  @override
   Future<void> approveMeetingRequest(String meetingId) async {
     final requestIndex = _meetingRequests.indexWhere((m) => m.id == meetingId);
     if (requestIndex != -1) {
       final request = _meetingRequests[requestIndex];
       _meetingRequests.removeAt(requestIndex);
-      
+
       // Move to confirmed meetings
-      _meetings.add(ScheduledMeeting(
-        id: request.id,
-        trainerId: request.trainerId,
-        memberId: request.memberId,
-        trainerName: request.trainerName,
-        memberName: request.memberName,
-        scheduledFor: request.scheduledFor,
-        createdAt: request.createdAt,
-        topic: request.topic,
-        description: request.description,
-        durationMinutes: request.durationMinutes,
-        status: MeetingStatus.confirmed,
-      ));
+      _meetings.add(
+        ScheduledMeeting(
+          id: request.id,
+          trainerId: request.trainerId,
+          memberId: request.memberId,
+          trainerName: request.trainerName,
+          memberName: request.memberName,
+          scheduledFor: request.scheduledFor,
+          createdAt: request.createdAt,
+          topic: request.topic,
+          description: request.description,
+          durationMinutes: request.durationMinutes,
+          status: MeetingStatus.approved,
+        ),
+      );
       _notifyListeners();
     }
   }
 
   /// Decline a meeting request (trainer action)
-  Future<void> declineMeetingRequest(String meetingId) async {
+  @override
+  Future<void> declineMeetingRequest(String meetingId, {String? reason}) async {
     final requestIndex = _meetingRequests.indexWhere((m) => m.id == meetingId);
     if (requestIndex != -1) {
-      _meetingRequests.removeAt(requestIndex);
+      final request = _meetingRequests.removeAt(requestIndex);
+      // Keep declined record in history
+      _meetings.add(request.copyWith(status: MeetingStatus.declined, declineReason: reason));
       _notifyListeners();
     }
   }
@@ -139,11 +154,13 @@ class MockMeetingService implements MeetingService {
   void _notifyListeners() {
     _trainerMeetingsController.add(_meetings);
     _memberMeetingsController.add(_meetings);
+    _trainerRequestsController.add(_meetingRequests);
   }
 
   @override
   void dispose() {
     _trainerMeetingsController.close();
     _memberMeetingsController.close();
+    _trainerRequestsController.close();
   }
 }

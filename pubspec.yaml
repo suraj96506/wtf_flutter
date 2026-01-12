@@ -38,7 +38,9 @@ dependencies:
   hive_flutter: ^1.1.0
   http: ^1.6.0
   hmssdk_flutter: ^1.11.0
+  crypto: ^3.0.7
   firebase_core: ^4.3.0
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

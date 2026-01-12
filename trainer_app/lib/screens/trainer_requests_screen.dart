@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:shared/models/call_request.dart';
+import 'package:shared/services/firestore_call_service.dart';
 import 'package:shared/services/service_providers.dart';
-import 'package:intl/intl.dart'; // For date formatting
 
 class TrainerRequestsScreen extends ConsumerWidget {
   const TrainerRequestsScreen({super.key});
@@ -13,18 +14,20 @@ class TrainerRequestsScreen extends ConsumerWidget {
     final currentUser = ref.watch(currentUserStreamProvider).value;
 
     if (currentUser == null || currentUser.role != 'trainer') {
-      return  Scaffold(
-        appBar: AppBar(title: Text('Requests')),
-        body: Center(child: Text('You must be a trainer to view requests.')),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Requests')),
+        body: const Center(
+          child: Text('You must be a trainer to view requests.'),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Call Requests'),
-      ),
+      appBar: AppBar(title: const Text('Call Requests')),
       body: StreamBuilder<List<CallRequest>>(
-        stream: callService.getCallRequests(currentUser.id),
+        stream: callService is FirestoreCallService
+            ? callService.getCallRequestsForTrainer(currentUser.id)
+            : callService.getCallRequests(currentUser.id),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -33,13 +36,12 @@ class TrainerRequestsScreen extends ConsumerWidget {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final allRequests = snapshot.data ?? [];
-          final pendingRequests = allRequests
-              .where((req) => req.trainerId == currentUser.id && req.status == CallRequestStatus.pending)
+          final pendingRequests = (snapshot.data ?? [])
+              .where((req) => req.status == CallRequestStatus.pending)
               .toList();
 
           if (pendingRequests.isEmpty) {
-            return const Center(child: Text('No pending call requests.'));
+            return const Center(child: Text('No pending call requests yet.'));
           }
 
           return ListView.builder(
@@ -53,9 +55,22 @@ class TrainerRequestsScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Member ID: ${request.memberId}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text('Scheduled For: ${DateFormat('EEE, MMM d, yyyy - h:mm a').format(request.scheduledFor)}'),
-                      if (request.note.isNotEmpty) Text('Note: ${request.note}'),
+                      Text(
+                        'Member: ${request.memberName.isNotEmpty ? request.memberName : request.memberId}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'When: ${DateFormat('EEE, MMM d, yyyy - h:mm a').format(request.scheduledFor)}',
+                      ),
+                      if (request.note.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6.0),
+                          child: Text('Note: ${request.note}'),
+                        ),
                       const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -65,7 +80,9 @@ class TrainerRequestsScreen extends ConsumerWidget {
                               await callService.approveCall(request);
                               if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Call request approved!')),
+                                const SnackBar(
+                                  content: Text('Call request approved!'),
+                                ),
                               );
                             },
                             child: const Text('Approve'),
@@ -73,11 +90,12 @@ class TrainerRequestsScreen extends ConsumerWidget {
                           const SizedBox(width: 10),
                           OutlinedButton(
                             onPressed: () async {
-                              // TODO: Implement reason modal for declining
                               await callService.declineCall(request);
                               if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Call request declined.')),
+                                const SnackBar(
+                                  content: Text('Call request declined.'),
+                                ),
                               );
                             },
                             child: const Text('Decline'),
