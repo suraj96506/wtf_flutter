@@ -1,3 +1,4 @@
+import 'package:hmssdk_flutter/hmssdk_flutter.dart';
 import 'package:shared/models/call_request.dart';
 import 'package:shared/models/room_meta.dart';
 
@@ -13,6 +14,9 @@ abstract class CallService {
   Future<void> joinRoom(String roomId, String userId, String role);
   Future<void> leaveRoom();
   Stream<RoomMeta?> get currentRoom; // Stream to get current room info
+  Stream<List<HMSVideoTrack>> get videoTracks;
+  Future<void> toggleMicMuteState();
+  Future<void> toggleCameraMuteState();
 
   void dispose();
 }

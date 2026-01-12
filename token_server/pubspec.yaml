@@ -12,6 +12,7 @@ dependencies:
   hmssdk_flutter: ^1.11.0
   http: ^1.6.0
   intl: ^0.20.2
+  permission_handler: ^12.0.1
   shelf: ^1.4.1
   shelf_router: ^1.1.4
 

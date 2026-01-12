@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:hmssdk_flutter/hmssdk_flutter.dart';
 import 'package:shared/models/call_request.dart';
 import 'package:shared/models/room_meta.dart';
 import 'package:shared/services/call_service.dart';
@@ -15,12 +16,16 @@ class MockCallService implements CallService {
   @override
   Stream<List<CallRequest>> getCallRequests(String userId) {
     // Emit current snapshot filtered for the user.
-    _requestsController.add(_requests
-        .where((req) => req.memberId == userId || req.trainerId == userId)
-        .toList());
-    return _requestsController.stream.map((list) => list
-        .where((req) => req.memberId == userId || req.trainerId == userId)
-        .toList());
+    _requestsController.add(
+      _requests
+          .where((req) => req.memberId == userId || req.trainerId == userId)
+          .toList(),
+    );
+    return _requestsController.stream.map(
+      (list) => list
+          .where((req) => req.memberId == userId || req.trainerId == userId)
+          .toList(),
+    );
   }
 
   @override
@@ -51,7 +56,8 @@ class MockCallService implements CallService {
       scheduledFor: existing.scheduledFor,
       note: existing.note,
       status: status,
-      memberName:"DK", trainerName: 'Aarav', 
+      memberName: "DK",
+      trainerName: 'Aarav',
     );
     _requestsController.add(List.unmodifiable(_requests));
   }
@@ -65,13 +71,15 @@ class MockCallService implements CallService {
 
   @override
   Future<void> joinRoom(String roomId, String userId, String role) async {
-    _roomController.add(RoomMeta(
-      id: roomId,
-      callRequestId: roomId,
-      hmsRoomId: 'mock_hms_room',
-      hmsRoleMember: 'member',
-      hmsRoleTrainer: 'trainer',
-    ));
+    _roomController.add(
+      RoomMeta(
+        id: roomId,
+        callRequestId: roomId,
+        hmsRoomId: 'mock_hms_room',
+        hmsRoleMember: 'member',
+        hmsRoleTrainer: 'trainer',
+      ),
+    );
   }
 
   @override
@@ -81,6 +89,15 @@ class MockCallService implements CallService {
 
   @override
   Stream<RoomMeta?> get currentRoom => _roomController.stream;
+
+  @override
+  Stream<List<HMSVideoTrack>> get videoTracks => const Stream.empty();
+
+  @override
+  Future<void> toggleMicMuteState() async {}
+
+  @override
+  Future<void> toggleCameraMuteState() async {}
 
   @override
   void dispose() {

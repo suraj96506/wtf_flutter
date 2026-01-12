@@ -15,7 +15,7 @@ Future<void> main(List<String> args) async {
   
  final accessKey = "6964b83d6a127e1cf1253b09";
   final appSecret = "R-Ne876hxyDQEPVeDyRTQMaUNKZG2zmQs3dnGFoJrwG2rbNSzlPb8URGyxlYg7hQzFQMkKzSY1Bmjf4PiIbrLakXl3CW1w-dBw4j0JWFo0c4Dt4qc6IHoQwUmUaH3EuPhJGEsgvEtwJlISYPQdiE4wuTYVCVcSYnUYEFmslt3UE=";
-  final defaultRoomId = "12122abcabc";
+  final defaultRoomId = "6964b8aaffada931aae17de6";
 
   // if (accessKey == null || appSecret == null) {
   //   stderr.writeln(

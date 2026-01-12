@@ -10,9 +10,14 @@ import 'package:shared/services/call_service.dart';
 
 class FirestoreCallService implements CallService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final StreamController<RoomMeta?> _roomController = StreamController<RoomMeta?>.broadcast();
+  final StreamController<RoomMeta?> _roomController =
+      StreamController<RoomMeta?>.broadcast();
+  final StreamController<List<HMSVideoTrack>> _videoTracksController =
+      StreamController<List<HMSVideoTrack>>.broadcast();
   final HMSSDK _hmsSdk = HMSSDK();
-  final HMSUpdateListener _hmsListener = _SimpleHMSListener();
+  late final HMSUpdateListener _hmsListener;
+  late final Future<void> _ready;
+  final List<HMSVideoTrack> _videoTracks = [];
 
   static const _tokenServerBase = String.fromEnvironment(
     'TOKEN_SERVER_BASE',
@@ -20,6 +25,12 @@ class FirestoreCallService implements CallService {
   );
 
   FirestoreCallService() {
+    _hmsListener = _SimpleHMSListener(this);
+    _ready = _initHms();
+  }
+
+  Future<void> _initHms() async {
+    await _hmsSdk.build();
     _hmsSdk.addUpdateListener(listener: _hmsListener);
   }
 
@@ -30,14 +41,15 @@ class FirestoreCallService implements CallService {
         .where('memberId', isEqualTo: userId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => CallRequest.fromJson(doc.data()))
-          .toList();
-    }).handleError((error) {
-      // Basic error handling
-      print('Error fetching call requests for member: $error');
-      return [];
-    });
+          return snapshot.docs
+              .map((doc) => CallRequest.fromJson(doc.data()))
+              .toList();
+        })
+        .handleError((error) {
+          // Basic error handling
+          print('Error fetching call requests for member: $error');
+          return [];
+        });
   }
 
   Stream<List<CallRequest>> getCallRequestsForTrainer(String trainerId) {
@@ -46,14 +58,15 @@ class FirestoreCallService implements CallService {
         .where('trainerId', isEqualTo: trainerId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => CallRequest.fromJson(doc.data()))
-          .toList();
-    }).handleError((error) {
-      // Basic error handling
-      print('Error fetching call requests for trainer: $error');
-      return [];
-    });
+          return snapshot.docs
+              .map((doc) => CallRequest.fromJson(doc.data()))
+              .toList();
+        })
+        .handleError((error) {
+          // Basic error handling
+          print('Error fetching call requests for trainer: $error');
+          return [];
+        });
   }
 
   @override
@@ -70,18 +83,16 @@ class FirestoreCallService implements CallService {
 
   @override
   Future<void> approveCall(CallRequest callRequest) async {
-    await _firestore
-        .collection('callRequests')
-        .doc(callRequest.id)
-        .update({'status': CallRequestStatus.approved.name});
+    await _firestore.collection('callRequests').doc(callRequest.id).update({
+      'status': CallRequestStatus.approved.name,
+    });
   }
 
   @override
   Future<void> declineCall(CallRequest callRequest) async {
-    await _firestore
-        .collection('callRequests')
-        .doc(callRequest.id)
-        .update({'status': CallRequestStatus.declined.name});
+    await _firestore.collection('callRequests').doc(callRequest.id).update({
+      'status': CallRequestStatus.declined.name,
+    });
   }
 
   // --- 100ms placeholders ---
@@ -110,6 +121,7 @@ class FirestoreCallService implements CallService {
 
   @override
   Future<void> joinRoom(String roomId, String userId, String role) async {
+    await _ready;
     final token = await getAuthToken(userId, role);
     final config = HMSConfig(authToken: token, userName: userId);
     await _hmsSdk.join(config: config);
@@ -134,14 +146,32 @@ class FirestoreCallService implements CallService {
   Stream<RoomMeta?> get currentRoom => _roomController.stream;
 
   @override
+  Stream<List<HMSVideoTrack>> get videoTracks => _videoTracksController.stream;
+
+  @override
+  Future<void> toggleMicMuteState() async {
+    await _hmsSdk.toggleMicMuteState();
+  }
+
+  @override
+  Future<void> toggleCameraMuteState() async {
+    await _hmsSdk.toggleCameraMuteState();
+  }
+
+  @override
   void dispose() {
     _roomController.close();
+    _videoTracksController.close();
     _hmsSdk.removeUpdateListener(listener: _hmsListener);
     _hmsSdk.destroy();
   }
 }
 
 class _SimpleHMSListener implements HMSUpdateListener {
+  final FirestoreCallService _service;
+
+  _SimpleHMSListener(this._service);
+
   @override
   void onJoin({HMSRoom? room}) {}
 
@@ -149,15 +179,32 @@ class _SimpleHMSListener implements HMSUpdateListener {
   void onPeerUpdate({HMSPeer? peer, HMSPeerUpdate? update}) {}
 
   @override
-  void onPeerListUpdate(
-      {required List<HMSPeer> addedPeers, required List<HMSPeer> removedPeers}) {}
+  void onPeerListUpdate({
+    required List<HMSPeer> addedPeers,
+    required List<HMSPeer> removedPeers,
+  }) {}
 
   @override
   void onRoomUpdate({HMSRoom? room, HMSRoomUpdate? update}) {}
 
   @override
-  void onTrackUpdate(
-      {HMSTrack? track, HMSTrackUpdate? trackUpdate, HMSPeer? peer}) {}
+  void onTrackUpdate({
+    HMSTrack? track,
+    HMSTrackUpdate? trackUpdate,
+    HMSPeer? peer,
+  }) {
+    if (track is HMSVideoTrack) {
+      if (trackUpdate == HMSTrackUpdate.trackRemoved) {
+        _service._videoTracks.removeWhere((t) => t.trackId == track.trackId);
+      } else {
+        _service._videoTracks.removeWhere((t) => t.trackId == track.trackId);
+        _service._videoTracks.add(track);
+      }
+      _service._videoTracksController.add(
+        List.unmodifiable(_service._videoTracks),
+      );
+    }
+  }
 
   @override
   void onUpdateSpeakers({required List<HMSSpeaker> updateSpeakers}) {}
@@ -169,12 +216,14 @@ class _SimpleHMSListener implements HMSUpdateListener {
   void onRoleChangeRequest({required HMSRoleChangeRequest roleChangeRequest}) {}
 
   @override
-  void onChangeTrackStateRequest(
-      {required HMSTrackChangeRequest hmsTrackChangeRequest}) {}
+  void onChangeTrackStateRequest({
+    required HMSTrackChangeRequest hmsTrackChangeRequest,
+  }) {}
 
   @override
-  void onRemovedFromRoom(
-      {required HMSPeerRemovedFromPeer hmsPeerRemovedFromPeer}) {}
+  void onRemovedFromRoom({
+    required HMSPeerRemovedFromPeer hmsPeerRemovedFromPeer,
+  }) {}
 
   void onException({HMSException? exception}) {
     // ignore: avoid_print
@@ -182,9 +231,12 @@ class _SimpleHMSListener implements HMSUpdateListener {
   }
 
   @override
-  void onAudioDeviceChanged(
-      {HMSAudioDevice? currentAudioDevice, List<HMSAudioDevice>? availableAudioDevice}) {}
+  void onAudioDeviceChanged({
+    HMSAudioDevice? currentAudioDevice,
+    List<HMSAudioDevice>? availableAudioDevice,
+  }) {}
 
+  @override
   void onSessionStoreAvailable({HMSSessionStore? hmsSessionStore}) {}
 
   @override

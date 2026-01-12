@@ -6,6 +6,7 @@ import 'package:shared/services/chat_service.dart';
 import 'package:shared/services/service_providers.dart';
 import 'package:shared/services/http_chat_service.dart';
 import 'package:shared/services/call_service.dart';
+import 'package:shared/widgets/simple_call_screen.dart';
 
 class ConversationScreen extends ConsumerStatefulWidget {
   final User otherUser;
@@ -313,8 +314,17 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   void _joinRoom(CallService callService, String roomId, User currentUser) {
-    final role = currentUser.role == 'trainer' ? 'trainer' : 'member';
-    callService.joinRoom(roomId, currentUser.id, role);
+    final role = currentUser.role == 'trainer' ? 'host' : 'guest';
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SimpleCallScreen(
+          roomId: roomId,
+          userId: currentUser.id,
+          role: role,
+          callService: callService,
+        ),
+      ),
+    );
   }
 
   Widget _buildVideoInviteCard(
