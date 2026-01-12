@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared/models/user.dart';
-import 'dart:math';
 import 'package:shared/models/message.dart';
 import 'package:shared/services/chat_service.dart';
 import 'package:shared/services/service_providers.dart';
+import 'package:shared/services/http_chat_service.dart';
+
 class ConversationScreen extends ConsumerStatefulWidget {
   final User otherUser;
 
@@ -21,7 +22,6 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO: Mark messages as read when screen is open
   }
 
   @override
@@ -58,7 +58,16 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final messages = snapshot.data ?? [];
-                
+
+                // Mark incoming messages as read when this screen is open
+                final toMark = messages
+                    .where((m) => m.receiverId == currentUser.id && m.status != MessageStatus.read)
+                    .map((m) => m.id)
+                    .toList();
+                if (toMark.isNotEmpty) {
+                  chatService.markMessagesAsRead(chatId, toMark);
+                }
+
                 // Scroll to bottom on new message
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController.hasClients) {
@@ -84,7 +93,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           ),
           // Typing indicator
           StreamBuilder<bool>(
-            stream: chatService.getTypingStatus(chatId),
+            stream: chatService is HttpChatService
+                ? chatService.getTypingStatusFor(chatId, currentUser.id)
+                : chatService.getTypingStatus(chatId),
             builder: (context, snapshot) {
               if (snapshot.data == true) {
                 return const Padding(
@@ -109,13 +120,16 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   Widget _buildMessageBubble(BuildContext context, Message message, bool isMe) {
+    const trainerRed = Color(0xFFE50914);
+    const memberBlue = Color(0xFF1A73E8); // fresher blue for member side
+    final bubbleColor = isMe ? trainerRed.withValues(alpha: 0.12) : memberBlue.withValues(alpha: 0.12);
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isMe ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.grey[300], // Use theme primary color
+          color: bubbleColor,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -176,6 +190,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                     status: MessageStatus.sending,
                   );
                   chatService.sendMessage(message);
+                  chatService.simulateTyping(chatId, true, userId: currentUser.id);
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    chatService.simulateTyping(chatId, false, userId: currentUser.id);
+                  });
                 },
               ),
             );
@@ -201,7 +219,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               ),
               onChanged: (text) {
                 // Simulate typing
-                chatService.simulateTyping(chatId, text.isNotEmpty);
+                chatService.simulateTyping(chatId, text.isNotEmpty, userId: currentUser.id);
               },
             ),
           ),
@@ -219,8 +237,12 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                   status: MessageStatus.sending,
                 );
                 chatService.sendMessage(message);
+                chatService.simulateTyping(chatId, true, userId: currentUser.id);
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  chatService.simulateTyping(chatId, false, userId: currentUser.id);
+                });
                 _textController.clear();
-                chatService.simulateTyping(chatId, false);
+                chatService.simulateTyping(chatId, false, userId: currentUser.id);
               }
             },
           ),
@@ -235,3 +257,4 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         : '${user2Id}_$user1Id';
   }
 }
+
